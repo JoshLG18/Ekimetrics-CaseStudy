@@ -1,0 +1,380 @@
+
+```{python}
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import sklearn
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score
+```
+
+```{python}
+# Import the data
+data = pd.read_csv('Advertising And Sales.csv')
+data
+```
+
+
+```{python}
+# Remove ID Column
+data = data.drop(columns=['ID'])
+
+# Missing Values
+missing_values = data.isnull().sum()
+missing_values
+```
+
+```{python}
+# Drop missing rows
+data = data.dropna()
+```
+
+```{python}
+# Summary Stats of Numeric Variables
+data.describe().round(3)
+```
+
+
+```{python}
+# Distribution of Numeric Variables in histograms
+data.hist(figsize=(10, 8), bins=30)
+plt.tight_layout()
+plt.show()
+```
+
+
+
+```{python}
+#Distribution of all variables in boxplots
+plt.figure(figsize=(12, 8))
+data.boxplot()
+plt.figtext(0.5, -0.2, "Figure ?: Box Plots of All Variables Before Normalisation", ha="center", fontsize=11)
+plt.xticks(rotation=90)
+plt.show()
+```
+
+
+```{python}
+numeric_cols = data.select_dtypes(include=[np.number]).columns.tolist()
+
+#Distribution of all variables in boxplots after scaling
+plt.figure(figsize=(12, 8))
+data.boxplot()
+plt.figtext(0.5, -0.2, "Figure ?: Box Plots of All Variables After Normalisation", ha="center", fontsize=11)
+plt.xticks(rotation=90)
+plt.show()
+```
+
+```{python}
+# Correlation plot
+plt.figure(figsize=(12, 10))
+sns.heatmap(data.corr(), annot=True, cmap='coolwarm', fmt='.2f', linewidths=0.5)
+plt.figtext(0.5, -0.09, "Figure ?: Correlation Plot of All Variables ", ha="center", fontsize=11)
+plt.show()
+
+# Scatter plots of the 3 variables against sales with fit lines
+variables_to_plot = ['TV', 'Radio', 'Newspaper']  # Replace with your actual variable names
+
+for var in variables_to_plot:
+    plt.figure(figsize=(10, 6))
+    sns.lmplot(x=var, y='Sales', data=data, aspect=1.5, scatter_kws={'s': 50}, line_kws={'color': 'red'})
+    plt.title(f'Scatter Plot of {var} vs Sales with Fit Line')
+    plt.xlabel(var)
+    plt.ylabel('Sales')
+    plt.show()
+
+
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+
+vif_data = pd.DataFrame()
+vif_data["Feature"] = X.columns
+vif_data["VIF"] = [variance_inflation_factor(X.values, i) for i in range(len(X.columns))]
+print(vif_data.sort_values(by="VIF", ascending=False))
+
+```
+
+
+```{python}
+# Regression Analysis
+X = data.drop(['Sales'], axis=1)
+y = data['Sales']
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Initialize and train the regression model
+regressor = LinearRegression()
+regressor.fit(X_train, y_train)
+
+# Make predictions on the test set
+y_pred = regressor.predict(X_test)
+
+# Evaluate the model
+mse_linear = mean_squared_error(y_test, y_pred)
+r2_linear = r2_score(y_test, y_pred)
+
+# Print the evaluation metrics
+print(f'Mean Squared Error: {mse_linear}')
+print(f'R-squared: {r2_linear}')
+```
+
+
+```{python}
+ #Add a constant to the model (intercept)
+X = sm.add_constant(X)
+
+X_with_const = sm.add_constant(X_test)
+
+
+# Fit the regression model using statsmodels
+model = sm.OLS(y, X).fit()
+
+# Print the summary of the regression model
+print(model.summary())
+
+# Get the coefficients and confidence intervals
+coefficients = model.params
+conf = model.conf_int()
+conf['Coefficient'] = coefficients
+conf.columns = ['Lower Bound', 'Upper Bound', 'Coefficient']
+
+# Filter out the constant term and coefficients below 0
+conf = conf.drop('const')
+
+# Visualize feature importance with confidence intervals
+plt.figure(figsize=(10, 6))
+conf['Coefficient'].plot(kind='barh', xerr=(conf['Upper Bound'] - conf['Lower Bound']) / 2)
+plt.title('Feature Importance with Confidence Intervals')
+plt.xlabel('Coefficient Value')
+plt.ylabel('Feature')
+plt.show()
+```
+
+
+```{python}
+# Residual plot
+residuals = y_test - y_pred
+plt.figure(figsize=(10, 6))
+sns.scatterplot(x=y_pred, y=residuals)
+plt.axhline(0, color='red', linestyle='--')
+plt.title('Residual Plot')
+plt.xlabel('Predicted Values')
+plt.ylabel('Residuals')
+plt.show()
+
+# Perform the test
+bp_test = het_breuschpagan(residuals, X_with_const)
+
+# Extract the p-value
+p_value = bp_test[1]
+print(f"Breusch-Pagan Test p-value: {p_value}")
+```
+
+```{python}
+# Accuracy for linear regression
+
+# Actual vs predicted sales with regression line
+plt.figure(figsize=(10, 6))
+sns.regplot(x=y_test, y=y_pred, ci=None, line_kws={"color": "red"})
+plt.xlabel("Actual Sales")
+plt.ylabel("Predicted Sales")
+plt.title("Actual vs. Predicted Sales with Regression Line")
+plt.show()
+
+# Calculate and print the accuracy score
+accuracy = r2_score(y_test, y_pred)
+print(f'Accuracy Score: {accuracy}')
+
+```
+
+```{python}
+from sklearn.preprocessing import LabelEncoder, StandardScaler, PolynomialFeatures
+
+# Polynomial Regression Analysis
+X = data.drop(['Sales'], axis=1)
+y = data['Sales']
+
+# Create polynomial features
+poly = PolynomialFeatures(degree=2, include_bias=False)
+X_poly = poly.fit_transform(X)
+feature_names = poly.get_feature_names_out(X.columns)
+
+# Create a DataFrame with polynomial features
+X_poly_df = pd.DataFrame(X_poly, columns=feature_names)
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X_poly_df, y, test_size=0.2, random_state=42)
+
+# Initialize and train the polynomial regression model
+regressor = LinearRegression()
+regressor.fit(X_train, y_train)
+
+# Make predictions on the test set
+y_pred = regressor.predict(X_test)
+
+# Evaluate the model
+mse_poly = mean_squared_error(y_test, y_pred)
+r2_poly = r2_score(y_test, y_pred)
+
+# Print the evaluation metrics
+print(f'Mean Squared Error: {mse_poly}')
+print(f'R-squared: {r2_poly}')
+
+# Fit the regression model using statsmodels
+X_train_sm = sm.add_constant(X_train)
+model = sm.OLS(y_train, X_train_sm).fit()
+
+# Print the summary of the regression model
+print(model.summary())
+
+# Get the coefficients and confidence intervals
+coefficients = model.params
+conf = model.conf_int()
+conf['Coefficient'] = coefficients
+conf.columns = ['Lower Bound', 'Upper Bound', 'Coefficient']
+
+# Filter out the constant term and coefficients below 0
+conf = conf.drop('const')
+
+# Visualize feature importance with confidence intervals
+plt.figure(figsize=(10, 6))
+conf['Coefficient'].plot(kind='barh', xerr=(conf['Upper Bound'] - conf['Lower Bound']) / 2)
+plt.title('Feature Importance with Confidence Intervals')
+plt.xlabel('Coefficient Value')
+plt.ylabel('Feature')
+plt.show()
+
+# Residual plot
+residuals = y_test - y_pred
+plt.figure(figsize=(10, 6))
+sns.scatterplot(x=y_pred, y=residuals)
+plt.axhline(0, color='red', linestyle='--')
+plt.title('Residual Plot')
+plt.xlabel('Predicted Values')
+plt.ylabel('Residuals')
+plt.show()
+
+# Add a constant to the independent variables
+X_with_const = sm.add_constant(X_test)
+
+# Perform the test
+bp_test = het_breuschpagan(residuals, X_with_const)
+
+# Extract the p-value
+p_value = bp_test[1]
+print(f"Breusch-Pagan Test p-value: {p_value}")
+
+# If p-value < 0.05, heteroscedasticity is present
+if p_value < 0.05:
+    print("Heteroscedasticity detected! Consider transforming data.")
+else:
+    print("No significant heteroscedasticity detected.")
+```
+
+
+```{python}
+# Accuracy for polynomial regression
+
+# Actual vs predicted sales with regression line
+plt.figure(figsize=(10, 6))
+sns.regplot(x=y_test, y=y_pred, ci=None, line_kws={"color": "red"})
+plt.xlabel("Actual Sales")
+plt.ylabel("Predicted Sales")
+plt.title("Actual vs. Predicted Sales with Regression Line")
+plt.show()
+
+# Calculate and print the accuracy score
+accuracy = r2_score(y_test, y_pred)
+print(f'Accuracy Score: {accuracy}')
+```
+
+
+```{python}
+from sklearn.linear_model import LinearRegression, Lasso, Ridge
+
+# Lasso Regression Analysis
+lasso = Lasso(alpha=0.1)
+lasso.fit(X_train, y_train)
+y_pred_lasso = lasso.predict(X_test)
+
+# Evaluate the Lasso model
+mse_lasso = mean_squared_error(y_test, y_pred_lasso)
+r2_lasso = r2_score(y_test, y_pred_lasso)
+print(f'Lasso Mean Squared Error: {mse_lasso}')
+print(f'Lasso R-squared: {r2_lasso}')
+
+# Actual vs predicted sales with regression line for Lasso
+plt.figure(figsize=(10, 6))
+sns.regplot(x=y_test, y=y_pred_lasso, ci=None, line_kws={"color": "red"})
+plt.xlabel("Actual Sales")
+plt.ylabel("Predicted Sales")
+plt.title("Actual vs. Predicted Sales with Lasso Regression Line")
+plt.show()
+
+# Ridge Regression Analysis
+ridge = Ridge(alpha=1.0)
+ridge.fit(X_train, y_train)
+y_pred_ridge = ridge.predict(X_test)
+
+# Evaluate the Ridge model
+mse_ridge = mean_squared_error(y_test, y_pred_ridge)
+r2_ridge = r2_score(y_test, y_pred_ridge)
+print(f'Ridge Mean Squared Error: {mse_ridge}')
+print(f'Ridge R-squared: {r2_ridge}')
+
+# Actual vs predicted sales with regression line for Ridge
+plt.figure(figsize=(10, 6))
+sns.regplot(x=y_test, y=y_pred_ridge, ci=None, line_kws={"color": "red"})
+plt.xlabel("Actual Sales")
+plt.ylabel("Predicted Sales")
+plt.title("Actual vs. Predicted Sales with Ridge Regression Line")
+plt.show()
+```
+
+
+Bayseian Model - Use when time and region are in the data
+
+```{python}
+from sklearn.linear_model import LinearRegression, Lasso, Ridge, BayesianRidge
+
+# Bayesian Ridge Regression Analysis
+bayesian_ridge = BayesianRidge()
+bayesian_ridge.fit(X_train, y_train)
+y_pred_bayesian = bayesian_ridge.predict(X_test)
+
+# Evaluate the Bayesian Ridge model
+mse_bayesian = mean_squared_error(y_test, y_pred_bayesian)
+r2_bayesian = r2_score(y_test, y_pred_bayesian)
+print(f'Bayesian Ridge Mean Squared Error: {mse_bayesian}')
+print(f'Bayesian Ridge R-squared: {r2_bayesian}')
+
+# Actual vs predicted sales with regression line for Bayesian Ridge
+plt.figure(figsize=(10, 6))
+sns.regplot(x=y_test, y=y_pred_bayesian, ci=None, line_kws={"color": "red"})
+plt.xlabel("Actual Sales")
+plt.ylabel("Predicted Sales")
+plt.title("Actual vs. Predicted Sales with Bayesian Ridge Regression Line")
+plt.show()
+```
+
+
+```{python}
+# Best performing regression model
+# Compare models and output the best performing one
+models = {
+    'Linear Regression': {'mse': mse_linear, 'r2': r2_linear},
+    'Polynomial Regression': {'mse': mse_poly, 'r2': r2_poly},
+    'Lasso Regression': {'mse': mse_lasso, 'r2': r2_lasso},
+    'Ridge Regression': {'mse': mse_ridge, 'r2': r2_ridge},
+    'Bayesian Ridge Regression': {'mse': mse_bayesian, 'r2': r2_bayesian}
+}
+
+best_model = max(models, key=lambda x: models[x]['r2'])
+print(f'The best performing model is: {best_model}')
+print(f'R-squared: {models[best_model]["r2"]}')
+print(f'Mean Squared Error: {models[best_model]["mse"]}')
+```
+
+
