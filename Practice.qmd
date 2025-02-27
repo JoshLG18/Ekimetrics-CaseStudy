@@ -140,7 +140,7 @@ conf = model.conf_int()
 conf['Coefficient'] = coefficients
 conf.columns = ['Lower Bound', 'Upper Bound', 'Coefficient']
 
-# Filter out the constant term and coefficients below 0
+# Filter out the constant term 
 conf = conf.drop('const')
 
 # Visualize feature importance with confidence intervals
