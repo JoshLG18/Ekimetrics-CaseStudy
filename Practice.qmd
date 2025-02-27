@@ -246,7 +246,7 @@ plt.xlabel('Coefficient Value')
 plt.ylabel('Feature')
 plt.show()
 
-# Residual plot
+# Residual plotg
 residuals = y_test - y_pred
 plt.figure(figsize=(10, 6))
 sns.scatterplot(x=y_pred, y=residuals)
